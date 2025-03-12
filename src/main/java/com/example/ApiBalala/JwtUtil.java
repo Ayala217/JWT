@@ -1,7 +1,6 @@
 package com.example.ApiBalala;
 
 import io.jsonwebtoken.*;
-import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,25 +10,22 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-import java.security.Key;
 import java.util.Date;
 import java.util.List;
 
 @Component
 public class JwtUtil {
     private static final Logger logger = LoggerFactory.getLogger(JwtUtil.class);
-    private final long validity = 3600000; // 1 hora de duración
-    private final Key secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS256); // 🔥 Se genera una clave segura
+    private final long validity = 3600000; // 1 hora
 
     public String generateToken(String username, String role) {
-        logger.info("Generando token firmado para usuario: {}", username);
+        logger.info("Generando token SIN FIRMA para usuario: {}", username);
         return Jwts.builder()
                 .setSubject(username)
                 .claim("role", role)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + validity))
-                .signWith(secretKey, SignatureAlgorithm.HS256) // 🔥 Se firma con HS256
-                .compact();
+                .compact(); // ❌ Se elimina la firma
     }
 
     public String resolveToken(HttpServletRequest request) {
@@ -43,9 +39,8 @@ public class JwtUtil {
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder()
-                    .setSigningKey(secretKey) // 🔥 Se usa la clave secreta para validar
                     .build()
-                    .parseClaimsJws(token);
+                    .parseClaimsJwt(token); // ⚠ Se usa parseClaimsJwt() para evitar validar firma
             return true;
         } catch (JwtException e) {
             logger.error("Token inválido: {}", e.getMessage());
@@ -55,18 +50,16 @@ public class JwtUtil {
 
     public String getUsername(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(secretKey)
                 .build()
-                .parseClaimsJws(token)
+                .parseClaimsJwt(token) // ⚠ Sin firma
                 .getBody()
                 .getSubject();
     }
 
     public String getRole(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(secretKey)
                 .build()
-                .parseClaimsJws(token)
+                .parseClaimsJwt(token) // ⚠ Sin firma
                 .getBody()
                 .get("role", String.class);
     }
